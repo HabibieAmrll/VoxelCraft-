@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>VOXEL CRAFT — Hand Gesture Building</title>
+<style>
+  :root{
+    --bg: #07090e;
+    --bg2: #0c1018;
+    --panel: #11151f;
+    --panel2: #161c29;
+    --line: #232c3d;
+    --gold: #e8c275;
+    --accent: #7dffb3;
+    --accent2: #ff8a5c;
+    --blue: #5ca9ff;
+    --text: #eef2f8;
+    --muted: #8493ab;
+    --serif: 'Georgia', 'Times New Roman', serif;
+    --mono: 'Courier New', ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family: var(--mono);
+    overflow:hidden;
+  }
+  #app{ position:relative; width:100vw; height:100vh; }
+  canvas#three-canvas{ position:absolute; inset:0; display:block; }
+
+  /* ===================== SPLASH / TITLE SCREEN ===================== */
+  #splash{
+    position:absolute; inset:0; z-index:100;
+    background:
+      radial-gradient(ellipse at 50% 30%, #14233a 0%, transparent 60%),
+      linear-gradient(180deg, #060810 0%, #0a0e18 55%, #05070c 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+  #splash::before{
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(232,194,117,0.025) 0px, transparent 1px, transparent 38px, rgba(232,194,117,0.025) 39px),
+      repeating-linear-gradient(90deg, rgba(232,194,117,0.025) 0px, transparent 1px, transparent 38px, rgba(232,194,117,0.025) 39px);
+    pointer-events:none;
+  }
+  #splash.hide{ opacity:0; transform:scale(1.04); pointer-events:none; }
+
+  .splash-eyebrow{
+    font-size:11px; letter-spacing:.5em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:18px; opacity:.85;
+  }
+  .splash-title{
+    font-family:var(--serif); font-weight:700;
+    font-size:clamp(42px, 8vw, 88px);
+    letter-spacing:.04em;
+    background:linear-gradient(180deg, #ffffff 0%, #cfd9ea 55%, #8fa0bd 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    margin:0;
+    text-shadow:0 0 60px rgba(125,255,179,0.12);
+  }
+  .splash-sub{
+    margin-top:14px; font-size:13px; letter-spacing:.25em; text-transform:uppercase;
+    color:var(--muted);
+  }
+  .splash-divider{
+    width:90px; height:1px; margin:28px auto;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .splash-credit{
+    font-family:var(--serif); font-style:italic; font-size:16px;
+    color:var(--text); letter-spacing:.02em;
+  }
+  .splash-credit b{
+    font-style:normal; color:var(--gold); font-weight:700; letter-spacing:.05em;
+  }
+  .splash-credit small{
+    display:block; margin-top:6px; font-family:var(--mono); font-style:normal;
+    font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--muted);
+  }
+
+  #splash-start{
+    margin-top:46px;
+    background:linear-gradient(180deg, #1a2230, #0e131d);
+    border:1px solid var(--gold);
+    color:var(--gold);
+    font-family:var(--mono);
+    font-size:13px; letter-spacing:.2em; text-transform:uppercase;
+    padding:15px 38px; border-radius:3px; cursor:pointer;
+    box-shadow:0 0 0 0 rgba(232,194,117,0.0);
+    transition: box-shadow .25s, transform .15s, background .25s;
+  }
+  #splash-start:hover{
+    box-shadow:0 0 28px rgba(232,194,117,0.25);
+    background:linear-gradient(180deg, #232d3f, #131927);
+    transform: translateY(-1px);
+  }
+  #splash-start:active{ transform: translateY(0px); }
+
+  .corner-mark{
+    position:absolute; width:26px; height:26px; opacity:.55;
+  }
+  .corner-mark.tl{ top:28px; left:28px; border-top:1px solid var(--gold); border-left:1px solid var(--gold); }
+  .corner-mark.tr{ top:28px; right:28px; border-top:1px solid var(--gold); border-right:1px solid var(--gold); }
+  .corner-mark.bl{ bottom:28px; left:28px; border-bottom:1px solid var(--gold); border-left:1px solid var(--gold); }
+  .corner-mark.br{ bottom:28px; right:28px; border-bottom:1px solid var(--gold); border-right:1px solid var(--gold); }
+
+  /* ===================== MISSION SELECT ===================== */
+  #mission-select{
+    position:absolute; inset:0; z-index:90;
+    background:linear-gradient(180deg, #060810 0%, #0a0e18 100%);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    transition: opacity .6s ease;
+  }
+  #mission-select.show{ display:flex; }
+  #mission-select.hide{ opacity:0; pointer-events:none; }
+  .ms-eyebrow{
+    font-size:11px; letter-spacing:.4em; text-transform:uppercase; color:var(--gold); margin-bottom:10px;
+  }
+  .ms-title{
+    font-family:var(--serif); font-size:32px; color:var(--text); margin:0 0 40px 0; letter-spacing:.02em;
+  }
+  .ms-cards{ display:flex; gap:26px; flex-wrap:wrap; justify-content:center; max-width:900px; padding:0 20px; }
+  .ms-card{
+    width:230px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px;
+    padding:22px 20px; cursor:pointer;
+    transition:.2s border-color, .2s transform, .2s box-shadow;
+    text-align:left;
+  }
+  .ms-card:hover{ border-color:var(--gold); transform:translateY(-4px); box-shadow:0 10px 30px rgba(0,0,0,0.4); }
+  .ms-card .icon{ font-size:34px; margin-bottom:14px; display:block; }
+  .ms-card h4{ margin:0 0 6px 0; font-family:var(--serif); font-size:19px; color:var(--text); letter-spacing:.01em; }
+  .ms-card p{ margin:0 0 14px 0; font-size:12px; color:var(--muted); line-height:1.5; }
+  .ms-card .meta{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); }
+
+  /* ===================== IN-GAME HUD ===================== */
+  #video{
+    position:absolute; bottom:16px; right:16px;
+    width:200px; height:150px; border-radius:8px;
+    border:1px solid var(--line); object-fit:cover;
+    transform:scaleX(-1); z-index:5; background:#000; opacity:0.95;
+  }
+  #overlay-canvas{
+    position:absolute; bottom:16px; right:16px;
+    width:200px; height:150px; border-radius:8px;
+    transform:scaleX(-1); z-index:6; pointer-events:none;
+  }
+
+  #hud{ position:absolute; top:18px; left:18px; z-index:10; max-width:280px; display:none; }
+  #hud.show{ display:block; }
+  .brand{
+    font-size:10px; letter-spacing:.3em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+  }
+  .brand b{ color:var(--gold); font-family:var(--serif); font-size:13px; letter-spacing:.05em; }
+  .panel{
+    background: rgba(17,21,31,0.88);
+    border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; backdrop-filter: blur(8px); margin-bottom:10px;
+  }
+  .panel h3{
+    margin:0 0 8px 0; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--gold); display:flex; justify-content:space-between; align-items:center;
+  }
+  .row{ display:flex; align-items:center; gap:8px; font-size:13px; margin:5px 0; color:var(--text); }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:.15s; }
+  .dot.on{ background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .dot.erase{ background:var(--accent2); box-shadow:0 0 8px var(--accent2); }
+
+  #mission-panel{ position:absolute; top:18px; left:50%; transform:translateX(-50%); z-index:10; display:none; text-align:center; }
+  #mission-panel.show{ display:block; }
+  #mission-name{
+    font-family:var(--serif); font-size:18px; color:var(--text); letter-spacing:.02em;
+    background: rgba(17,21,31,0.88); border:1px solid var(--line); border-radius:10px 10px 0 0;
+    padding:10px 26px 6px; backdrop-filter:blur(8px);
+  }
+  #mission-name .icon{ margin-right:8px; }
+  #progress-wrap{
+    background: rgba(17,21,31,0.88); border:1px solid var(--line); border-top:none;
+    border-radius:0 0 10px 10px; padding:10px 26px 14px; backdrop-filter:blur(8px);
+    min-width:280px;
+  }
+  #progress-track{
+    width:100%; height:8px; border-radius:5px; background:#1c2333; overflow:hidden; margin-bottom:8px;
+    border:1px solid var(--line);
+  }
+  #progress-fill{
+    height:100%; width:0%; border-radius:5px;
+    background:linear-gradient(90deg, var(--accent), var(--gold));
+    transition: width .35s ease;
+  }
+  #progress-label{ font-size:11px; letter-spacing:.08em; color:var(--muted); display:flex; justify-content:space-between; }
+  #progress-label b{ color:var(--text); }
+
+  #status{
+    position:absolute; top:18px; right:18px; z-index:10;
+    font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); text-align:right; display:none;
+  }
+  #status.show{ display:block; }
+  #status .big{ font-size:20px; color:var(--text); letter-spacing:0; text-transform:none; margin-top:4px; font-family:var(--serif);}
+
+  #colors{ position:absolute; bottom:16px; left:18px; z-index:10; display:none; gap:8px; }
+  #colors.show{ display:flex; }
+  .swatch{
+    width:30px; height:30px; border-radius:6px; border:2px solid transparent;
+    cursor:pointer; transition:.12s transform;
+  }
+  .swatch:hover{ transform: translateY(-3px); }
+  .swatch.active{ border-color:var(--text); }
+
+  #bottom-actions{
+    position:absolute; bottom:178px; left:18px; z-index:10; display:none; gap:10px;
+  }
+  #bottom-actions.show{ display:flex; }
+  button{
+    background:var(--panel); border:1px solid var(--line); color:var(--text);
+    font-family:inherit; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    padding:9px 14px; border-radius:8px; cursor:pointer;
+  }
+  button:hover{ border-color:var(--gold); color:var(--gold); }
+
+  /* ===================== MISSION COMPLETE OVERLAY ===================== */
+  #mission-complete{
+    position:absolute; inset:0; z-index:80;
+    background:rgba(5,7,12,0.88); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; flex-direction:column;
+    text-align:center; opacity:0; transition:opacity .5s ease;
+  }
+  #mission-complete.show{ display:flex; opacity:1; }
+  .mc-icon{ font-size:60px; margin-bottom:18px; filter:drop-shadow(0 0 24px rgba(232,194,117,0.5)); }
+  .mc-title{
+    font-family:var(--serif); font-size:38px; color:var(--gold); margin:0 0 8px 0; letter-spacing:.03em;
+  }
+  .mc-sub{ color:var(--muted); font-size:13px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:30px; }
+  .mc-actions{ display:flex; gap:12px; }
+
+  #loading{
+    position:absolute; inset:0; z-index:120;
+    background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  }
+  #loading .spin{
+    width:34px; height:34px; border-radius:50%;
+    border:3px solid var(--line); border-top-color:var(--gold);
+    animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #loading .msg{ color:var(--muted); font-size:13px; letter-spacing:.05em; text-align:center; max-width:380px; }
+
+  kbd{ background:#0008; border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:11px; color:var(--gold); }
+
+  .watermark{
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted);
+    z-index:10; opacity:.65; display:none;
+  }
+  .watermark.show{ display:block; }
+  .watermark b{ color:var(--gold); }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="three-canvas"></canvas>
+
+  <!-- ============ SPLASH SCREEN ============ -->
+  <div id="splash">
+    <div class="corner-mark tl"></div><div class="corner-mark tr"></div>
+    <div class="corner-mark bl"></div><div class="corner-mark br"></div>
+    <div class="splash-eyebrow">Hand Gesture Construction</div>
+    <h1 class="splash-title">VOXEL CRAFT</h1>
+    <div class="splash-sub">Bangun dunia hanya dengan gerakan tanganmu</div>
+    <div class="splash-divider"></div>
+    <div class="splash-credit">
+      Diciptakan oleh <b>Habibieamrll</b>
+      <small>Pencipta &amp; Pengembang</small>
+    </div>
+    <button id="splash-start">Mulai Permainan</button>
+  </div>
+
+  <!-- ============ MISSION SELECT ============ -->
+  <div id="mission-select">
+    <div class="ms-eyebrow">Pilih Misi</div>
+    <h2 class="ms-title">Apa yang ingin kamu bangun?</h2>
+    <div class="ms-cards">
+      <div class="ms-card" data-mission="house">
+        <span class="icon">🏠</span>
+        <h4>Bangun Rumah</h4>
+        <p>Susun voxel mengikuti cetak biru untuk membangun rumah sederhana lengkap dengan atap.</p>
+        <div class="meta">Tingkat: Mudah</div>
+      </div>
+      <div class="ms-card" data-mission="tree">
+        <span class="icon">🌳</span>
+        <h4>Bangun Pohon</h4>
+        <p>Tumbuhkan batang dan rimbun daun voxel menjadi sebuah pohon yang rindang.</p>
+        <div class="meta">Tingkat: Sedang</div>
+      </div>
+      <div class="ms-card" data-mission="free">
+        <span class="icon">✦</span>
+        <h4>Mode Bebas</h4>
+        <p>Tidak ada misi, tidak ada batas. Bangun apapun sesuai imajinasimu.</p>
+        <div class="meta">Tingkat: Santai</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MISSION COMPLETE ============ -->
+  <div id="mission-complete">
+    <div class="mc-icon">🏆</div>
+    <div class="mc-title">Misi Selesai!</div>
+    <div class="mc-sub" id="mc-sub-text">Kamu berhasil menyelesaikan bangunan</div>
+    <div class="mc-actions">
+      <button id="mc-replay">Ulangi Misi</button>
+      <button id="mc-menu">Kembali ke Menu</button>
+    </div>
+  </div>
+
+  <!-- ============ IN-GAME HUD ============ -->
+  <div id="hud">
+    <div class="brand"><b>Voxel Craft</b></div>
+    <div class="panel">
+      <h3>Gestur Tangan</h3>
+      <div class="row"><span class="dot" id="dot-track"></span> Tangan terdeteksi</div>
+      <div class="row"><span class="dot" id="dot-pinch"></span> Pinch → tempatkan blok</div>
+      <div class="row"><span class="dot erase" id="dot-fist"></span> Kepalan → hapus 1 blok (merah)</div>
+    </div>
+  </div>
+
+  <div id="mission-panel">
+    <div id="mission-name"><span class="icon">🏠</span><span id="mission-name-text">Bangun Rumah</span></div>
+    <div id="progress-wrap">
+      <div id="progress-track"><div id="progress-fill"></div></div>
+      <div id="progress-label"><span>Progres</span><span><b id="progress-count">0</b> / <span id="progress-total">0</span> blok</span></div>
+    </div>
+  </div>
+
+  <div id="status">
+    <div>Total Blok</div>
+    <div class="big" id="voxel-count">0</div>
+  </div>
+
+  <div id="colors">
+    <div class="swatch active" style="background:#7dffb3" data-color="#7dffb3"></div>
+    <div class="swatch" style="background:#5ca9ff" data-color="#5ca9ff"></div>
+    <div class="swatch" style="background:#ff8a5c" data-color="#ff8a5c"></div>
+    <div class="swatch" style="background:#ffe35c" data-color="#ffe35c"></div>
+    <div class="swatch" style="background:#ff5c8a" data-color="#ff5c8a"></div>
+    <div class="swatch" style="background:#c45cff" data-color="#c45cff"></div>
+    <div class="swatch" style="background:#a3733e" data-color="#a3733e"></div>
+  </div>
+
+  <div id="bottom-actions">
+    <button id="btn-clear">Bersihkan</button>
+    <button id="btn-mouse">Mode mouse: <span id="mouse-state">OFF</span></button>
+    <button id="btn-menu">Menu</button>
+  </div>
+
+  <div class="watermark">Voxel Craft — diciptakan oleh <b>Habibieamrll</b></div>
+
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="overlay-canvas"></canvas>
+
+  <div id="loading" style="display:none;">
+    <div class="spin"></div>
+    <div class="msg" id="loading-msg">Meminta akses webcam…</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" onerror="window.__loadError && window.__loadError('Three.js')"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" onerror="window.__loadError && window.__loadError('MediaPipe Hands')"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" onerror="window.__loadError && window.__loadError('MediaPipe Camera Utils')"></script>
+
+<script>
+window.__loadError = function(libName){
+  const loading = document.getElementById('loading');
+  const msg = document.getElementById('loading-msg');
+  loading.style.display = 'flex';
+  loading.querySelector('.spin').style.display = 'none';
+  msg.innerHTML = 'Gagal memuat library <b>' + libName + '</b> dari CDN.<br><br>' +
+    '<span style="color:var(--accent2); font-size:12px;">' +
+    'Kemungkinan penyebab:<br>' +
+    '1. Tidak ada koneksi internet saat halaman dimuat<br>' +
+    '2. Firewall/jaringan blokir CDN<br>' +
+    '3. Ad-blocker/extension memblokir script eksternal<br><br>' +
+    'Coba: refresh halaman, matikan ad-blocker, atau ganti jaringan.' +
+    '</span>';
+};
+
+(function(){
+  if (typeof THREE === 'undefined'){ window.__loadError('Three.js'); return; }
+  if (typeof Hands === 'undefined' || typeof Camera === 'undefined'){ window.__loadError('MediaPipe'); return; }
+
+  // ============================================================
+  // THREE.JS CORE SETUP
+  // ============================================================
+  const canvas = document.getElementById('three-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x07090e, 1);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x07090e, 20, 42);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(9, 9, 12);
+  camera.lookAt(0,0,0);
+
+  let camAngle = Math.atan2(camera.position.x, camera.position.z);
+  let camHeight = camera.position.y;
+  let camDist = Math.sqrt(camera.position.x**2 + camera.position.z**2);
+  function updateCamera(){
+    camera.position.x = Math.sin(camAngle) * camDist;
+    camera.position.z = Math.cos(camAngle) * camDist;
+    camera.position.y = camHeight;
+    camera.lookAt(0, 1.5, 0);
+  }
+  updateCamera();
+
+  let dragging = false, lastX=0, lastY=0;
+  canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+  window.addEventListener('pointerup', ()=> dragging=false);
+  window.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dx = e.clientX-lastX, dy = e.clientY-lastY;
+    camAngle -= dx * 0.005;
+    camHeight = Math.max(2, Math.min(20, camHeight - dy*0.03));
+    lastX=e.clientX; lastY=e.clientY;
+    updateCamera();
+  });
+  canvas.addEventListener('wheel', e=>{
+    camDist = Math.max(5, Math.min(30, camDist + e.deltaY*0.01));
+    updateCamera();
+  }, { passive:true });
+
+  scene.add(new THREE.AmbientLight(0x9fb4d8, 0.55));
+  const dl = new THREE.DirectionalLight(0xfff4dd, 0.95);
+  dl.position.set(8, 14, 6);
+  scene.add(dl);
+  const dl2 = new THREE.DirectionalLight(0x5c9aff, 0.22);
+  dl2.position.set(-8, 6, -6);
+  scene.add(dl2);
+
+  const GRID = 12, CELL = 1;
+  const gridHelper = new THREE.GridHelper(GRID*2*CELL, GRID*2, 0x2a3344, 0x161c29);
+  scene.add(gridHelper);
+
+  const groundGeo = new THREE.PlaneGeometry(GRID*2*CELL, GRID*2*CELL);
+  const ground = new THREE.Mesh(groundGeo, new THREE.MeshBasicMaterial({ visible:false }));
+  ground.rotation.x = -Math.PI/2;
+  scene.add(ground);
+
+  // ============================================================
+  // VOXEL STORAGE
+  // ============================================================
+  const voxels = new Map();
+  const voxelGeo = new THREE.BoxGeometry(0.96, 0.96, 0.96);
+  const edgesGeo = new THREE.EdgesGeometry(voxelGeo);
+  function snap(v){ return Math.round(v); }
+  function keyOf(x,y,z){ return x+','+y+','+z; }
+
+  let currentColor = 0x7dffb3;
+
+  function addVoxelRaw(x,y,z, colorOverride){
+    x=snap(x); y=snap(y); z=snap(z);
+    if (y<0) y=0;
+    if (Math.abs(x)>GRID || Math.abs(z)>GRID || y>GRID) return null;
+    const k = keyOf(x,y,z);
+    if (voxels.has(k)) return null;
+    const mat = new THREE.MeshStandardMaterial({ color: colorOverride!=null?colorOverride:currentColor, roughness:0.5, metalness:0.05 });
+    const mesh = new THREE.Mesh(voxelGeo, mat);
+    mesh.position.set(x*CELL, y*CELL+0.5, z*CELL);
+    mesh.scale.set(0.01,0.01,0.01);
+    const edges = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color:0x07090e, transparent:true, opacity:0.35 }));
+    mesh.add(edges);
+    scene.add(mesh);
+    voxels.set(k, mesh);
+    popIn(mesh);
+    updateCount();
+    onVoxelPlaced(x,y,z);
+    return mesh;
+  }
+
+  function popIn(mesh){
+    const start = performance.now();
+    function step(t){
+      const p = Math.min(1, (t-start)/180);
+      const s = 1 - Math.pow(1-p, 3);
+      mesh.scale.set(s,s,s);
+      if (p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function removeVoxel(x,y,z){
+    x=snap(x); y=snap(y); z=snap(z);
+    const k = keyOf(x,y,z);
+    const mesh = voxels.get(k);
+    if (mesh){
+      scene.remove(mesh);
+      voxels.delete(k);
+      updateCount();
+      onVoxelRemoved(x,y,z);
+    }
+  }
+
+  function clearAll(){
+    for (const mesh of voxels.values()) scene.remove(mesh);
+    voxels.clear();
+    updateCount();
+  }
+
+  function updateCount(){ document.getElementById('voxel-count').textContent = voxels.size; }
+
+  // Cursor ghost
+  const cursorGeo = new THREE.BoxGeometry(1,1,1);
+  const cursorMat = new THREE.MeshBasicMaterial({ color:0x7dffb3, transparent:true, opacity:0.35 });
+  const cursor = new THREE.Mesh(cursorGeo, cursorMat);
+  const cursorEdges = new THREE.LineSegments(new THREE.EdgesGeometry(cursorGeo), new THREE.LineBasicMaterial({ color:0xffffff }));
+  cursor.add(cursorEdges);
+  cursor.visible = false;
+  scene.add(cursor);
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+
+  function getTargetCell(){
+    raycaster.setFromCamera(ndc, camera);
+    const targets = [...voxels.values(), ground];
+    const hits = raycaster.intersectObjects(targets, false);
+    if (hits.length === 0) return null;
+    const hit = hits[0];
+    let base;
+    if (hit.object === ground){
+      base = hit.point.clone(); base.y = 0;
+    } else {
+      base = hit.object.position.clone();
+      base.y -= 0.5;
+      const n = hit.face.normal.clone();
+      n.transformDirection(hit.object.matrixWorld);
+      base.add(n.multiplyScalar(1));
+      base.y += 0.5;
+    }
+    return { x: snap(base.x), y: Math.max(0,snap(base.y - 0.5)), z: snap(base.z) };
+  }
+
+  function getEraseCell(){
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects([...voxels.values()], false);
+    if (hits.length === 0) return null;
+    const p = hits[0].object.position;
+    return { x: snap(p.x), y: snap(p.y-0.5), z: snap(p.z) };
+  }
+
+  function updateCursorVisual(){
+    const cell = getTargetCell();
+    if (!cell){ cursor.visible = false; return; }
+    cursor.visible = true;
+    cursor.position.set(cell.x*CELL, cell.y*CELL+0.5, cell.z*CELL);
+  }
+
+  // ============================================================
+  // MISSION SYSTEM — BLUEPRINTS
+  // ============================================================
+  function buildHouseBlueprint(){
+    const cells = [];
+    const wallColor = 0xd8c9a8;
+    const roofColor = 0x9b4f3f;
+    for (let y=0;y<3;y++){
+      for (let x=-2;x<=2;x++){
+        for (let z=-2;z<=2;z++){
+          const isEdge = (x===-2||x===2||z===-2||z===2);
+          if (!isEdge) continue;
+          if (z===2 && x===0 && y<=1) continue; // door gap
+          cells.push({x,y,z,color: wallColor});
+        }
+      }
+    }
+    for (let x=-2;x<=2;x++){
+      for (let z=-2;z<=2;z++){
+        cells.push({x,y:3,z,color: roofColor});
+      }
+    }
+    for (let x=-1;x<=1;x++){
+      for (let z=-1;z<=1;z++){
+        cells.push({x,y:4,z,color: roofColor});
+      }
+    }
+    cells.push({x:0,y:5,z:0,color: roofColor});
+    return cells;
+  }
+
+  function buildTreeBlueprint(){
+    const cells = [];
+    const trunkColor = 0x6b4226;
+    const leafColor = 0x4caf50;
+    const leafColor2 = 0x66bb6a;
+    for (let y=0;y<4;y++){
+      cells.push({x:0,y,z:0,color: trunkColor});
+    }
+    const layers = [
+      { y:4, r:2, color:leafColor },
+      { y:5, r:2.4, color:leafColor2 },
+      { y:6, r:2, color:leafColor },
+      { y:7, r:1.2, color:leafColor2 },
+      { y:8, r:0.6, color:leafColor },
+    ];
+    layers.forEach(layer=>{
+      for (let x=-3;x<=3;x++){
+        for (let z=-3;z<=3;z++){
+          const d = Math.sqrt(x*x+z*z);
+          if (d <= layer.r){
+            cells.push({x,y:layer.y,z,color: layer.color});
+          }
+        }
+      }
+    });
+    return cells;
+  }
+
+  const MISSIONS = {
+    house: { name:'Bangun Rumah', icon:'🏠', blueprint: buildHouseBlueprint },
+    tree:  { name:'Bangun Pohon', icon:'🌳', blueprint: buildTreeBlueprint },
+  };
+
+  let currentMission = null;
+  let blueprintCells = new Map();
+  let ghostGroup = null;
+
+  // Wrapper so mission logic can intercept color
+  function addVoxel(x,y,z){
+    if (currentMission){
+      const k = keyOf(snap(x),snap(y),snap(z));
+      const target = blueprintCells.get(k);
+      if (target){
+        return addVoxelRaw(x,y,z, target.color);
+      }
+    }
+    return addVoxelRaw(x,y,z, currentColor);
+  }
+
+  function startMission(missionId){
+    clearAll();
+    if (ghostGroup){ scene.remove(ghostGroup); ghostGroup = null; }
+    blueprintCells.clear();
+
+    if (missionId === 'free'){
+      currentMission = null;
+      document.getElementById('mission-panel').classList.remove('show');
+      enterGame();
+      return;
+    }
+
+    currentMission = missionId;
+    const mission = MISSIONS[missionId];
+    const cells = mission.blueprint();
+    ghostGroup = new THREE.Group();
+    const ghostMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.10 });
+    const ghostEdgeMat = new THREE.LineBasicMaterial({ color:0xe8c275, transparent:true, opacity:0.45 });
+
+    cells.forEach(c=>{
+      const k = keyOf(c.x,c.y,c.z);
+      blueprintCells.set(k, { color:c.color, filled:false, x:c.x, y:c.y, z:c.z });
+      const gm = new THREE.Mesh(voxelGeo, ghostMat.clone());
+      gm.position.set(c.x*CELL, c.y*CELL+0.5, c.z*CELL);
+      const ge = new THREE.LineSegments(edgesGeo, ghostEdgeMat);
+      gm.add(ge);
+      ghostGroup.add(gm);
+    });
+    scene.add(ghostGroup);
+
+    document.getElementById('mission-name-text').textContent = mission.name;
+    document.querySelector('#mission-name .icon').textContent = mission.icon;
+    document.getElementById('progress-total').textContent = blueprintCells.size;
+    document.getElementById('progress-count').textContent = 0;
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('mission-panel').classList.add('show');
+
+    enterGame();
+  }
+
+  function onVoxelPlaced(x,y,z){
+    if (!currentMission) return;
+    const k = keyOf(x,y,z);
+    const target = blueprintCells.get(k);
+    if (target && !target.filled){
+      target.filled = true;
+      updateMissionProgress();
+      if (ghostGroup){
+        ghostGroup.children.forEach(gm=>{
+          if (snap(gm.position.x)===x && snap(gm.position.y-0.5)===y && snap(gm.position.z)===z){
+            gm.visible = false;
+          }
+        });
+      }
+    }
+  }
+
+  function onVoxelRemoved(x,y,z){
+    if (!currentMission) return;
+    const k = keyOf(x,y,z);
+    const target = blueprintCells.get(k);
+    if (target && target.filled){
+      target.filled = false;
+      updateMissionProgress();
+      if (ghostGroup){
+        ghostGroup.children.forEach(gm=>{
+          if (snap(gm.position.x)===x && snap(gm.position.y-0.5)===y && snap(gm.position.z)===z){
+            gm.visible = true;
+          }
+        });
+      }
+    }
+  }
+
+  function updateMissionProgress(){
+    let filled = 0;
+    blueprintCells.forEach(c=>{ if (c.filled) filled++; });
+    const total = blueprintCells.size;
+    document.getElementById('progress-count').textContent = filled;
+    document.getElementById('progress-fill').style.width = (total? (filled/total*100):0) + '%';
+    if (total>0 && filled>=total){
+      showMissionComplete();
+    }
+  }
+
+  function showMissionComplete(){
+    const mission = MISSIONS[currentMission];
+    document.getElementById('mc-sub-text').textContent = 'Kamu berhasil menyelesaikan "' + mission.name + '"';
+    document.getElementById('mission-complete').classList.add('show');
+  }
+
+  // ============================================================
+  // UI: SPLASH → MISSION SELECT → GAME
+  // ============================================================
+  const splash = document.getElementById('splash');
+  const missionSelect = document.getElementById('mission-select');
+
+  document.getElementById('splash-start').addEventListener('click', ()=>{
+    splash.classList.add('hide');
+    setTimeout(()=>{
+      splash.style.display = 'none';
+      missionSelect.classList.add('show');
+    }, 700);
+  });
+
+  document.querySelectorAll('.ms-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const missionId = card.dataset.mission;
+      missionSelect.classList.add('hide');
+      setTimeout(()=>{
+        missionSelect.classList.remove('show','hide');
+        startMission(missionId);
+      }, 500);
+    });
+  });
+
+  document.getElementById('mc-replay').addEventListener('click', ()=>{
+    document.getElementById('mission-complete').classList.remove('show');
+    startMission(currentMission);
+  });
+  document.getElementById('mc-menu').addEventListener('click', ()=>{
+    document.getElementById('mission-complete').classList.remove('show');
+    backToMenu();
+  });
+  document.getElementById('btn-menu').addEventListener('click', backToMenu);
+
+  function backToMenu(){
+    clearAll();
+    if (ghostGroup){ scene.remove(ghostGroup); ghostGroup = null; }
+    document.getElementById('mission-panel').classList.remove('show');
+    document.getElementById('hud').classList.remove('show');
+    document.getElementById('status').classList.remove('show');
+    document.getElementById('colors').classList.remove('show');
+    document.getElementById('bottom-actions').classList.remove('show');
+    document.querySelector('.watermark').classList.remove('show');
+    missionSelect.classList.add('show');
+  }
+
+  let gameStarted = false;
+  function enterGame(){
+    document.getElementById('hud').classList.add('show');
+    document.getElementById('status').classList.add('show');
+    document.getElementById('colors').classList.add('show');
+    document.getElementById('bottom-actions').classList.add('show');
+    document.querySelector('.watermark').classList.add('show');
+    if (!gameStarted){
+      gameStarted = true;
+      initCameraAndHands();
+    }
+  }
+
+  // ============================================================
+  // COLOR SWATCHES & BUTTONS
+  // ============================================================
+  document.querySelectorAll('.swatch').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+      el.classList.add('active');
+      currentColor = parseInt(el.dataset.color.replace('#','0x'));
+      cursorMat.color.setHex(currentColor);
+    });
+  });
+  document.getElementById('btn-clear').addEventListener('click', ()=>{
+    clearAll();
+    if (currentMission){
+      blueprintCells.forEach(c=> c.filled=false);
+      updateMissionProgress();
+      if (ghostGroup) ghostGroup.children.forEach(gm=> gm.visible = true);
+    }
+  });
+
+  let mouseMode = false;
+  document.getElementById('btn-mouse').addEventListener('click', ()=>{
+    mouseMode = !mouseMode;
+    document.getElementById('mouse-state').textContent = mouseMode ? 'ON' : 'OFF';
+  });
+
+  window.addEventListener('pointermove', e=>{
+    if (!mouseMode || !gameStarted) return;
+    ndc.x = (e.clientX/window.innerWidth)*2 - 1;
+    ndc.y = -(e.clientY/window.innerHeight)*2 + 1;
+    updateCursorVisual();
+    const eraseCell = getEraseCell();
+    if (eraseCell){
+      eraseHighlight.visible = true;
+      eraseHighlight.position.set(eraseCell.x*CELL, eraseCell.y*CELL+0.5, eraseCell.z*CELL);
+    } else {
+      eraseHighlight.visible = false;
+    }
+  });
+  window.addEventListener('click', e=>{
+    if (!mouseMode || !gameStarted) return;
+    if (e.target.closest('#hud, #colors, #bottom-actions, #status, #mission-panel')) return;
+    const cell = getTargetCell();
+    if (cell) addVoxel(cell.x, cell.y, cell.z);
+  });
+  window.addEventListener('contextmenu', e=>{
+    if (!mouseMode || !gameStarted) return;
+    e.preventDefault();
+    const cell = getEraseCell();
+    if (cell) removeVoxel(cell.x, cell.y, cell.z);
+  });
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // ============================================================
+  // MEDIAPIPE HANDS
+  // ============================================================
+  const videoEl = document.getElementById('video');
+  const overlayEl = document.getElementById('overlay-canvas');
+  const octx = overlayEl.getContext('2d');
+  const dotTrack = document.getElementById('dot-track');
+  const dotPinch = document.getElementById('dot-pinch');
+  const dotFist  = document.getElementById('dot-fist');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loading-msg');
+
+  let wasPinching = false, wasFist = false, pinchCooldown = 0, fistCooldown = 0;
+
+  // Smoothed fingertip position in NDC space — averages recent frames so a tiny
+  // wobble while the finger curls into a pinch/fist doesn't shift the target cell.
+  let smoothNdcX = 0, smoothNdcY = 0, smoothInit = false;
+  const SMOOTH_FACTOR = 0.35; // lower = smoother/slower to react, higher = snappier
+
+  // Highlight mesh shown over the voxel that a fist-gesture is currently targeting,
+  // so the user gets clear visual confirmation of exactly which single block will
+  // be deleted before the gesture completes.
+  const eraseHighlightMat = new THREE.MeshBasicMaterial({ color:0xff3b3b, transparent:true, opacity:0.45 });
+  const eraseHighlight = new THREE.Mesh(new THREE.BoxGeometry(1.04,1.04,1.04), eraseHighlightMat);
+  const eraseHighlightEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.04,1.04,1.04)), new THREE.LineBasicMaterial({ color:0xff3b3b }));
+  eraseHighlight.add(eraseHighlightEdges);
+  eraseHighlight.visible = false;
+  scene.add(eraseHighlight);
+
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y, (a.z||0)-(b.z||0)); }
+
+  function isFist(landmarks){
+    const wrist = landmarks[0];
+    const tips=[8,12,16,20], mcps=[5,9,13,17];
+    let curled=0;
+    for (let i=0;i<tips.length;i++){
+      if (dist(landmarks[tips[i]],wrist) < dist(landmarks[mcps[i]],wrist)*1.15) curled++;
+    }
+    return curled>=3;
+  }
+  function isPinching(landmarks){
+    const thumbTip=landmarks[4], indexTip=landmarks[8];
+    const palmRef=dist(landmarks[0],landmarks[9]);
+    return dist(thumbTip,indexTip) < palmRef*0.45;
+  }
+
+  function onResults(results){
+    octx.save();
+    octx.clearRect(0,0,overlayEl.width, overlayEl.height);
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length===0){
+      dotTrack.classList.remove('on'); dotPinch.classList.remove('on'); dotFist.classList.remove('on');
+      if (!mouseMode) cursor.visible = false;
+      eraseHighlight.visible = false;
+      smoothInit = false; // reset smoothing once hand is lost, avoids jump on reacquire
+      octx.restore(); return;
+    }
+    dotTrack.classList.add('on');
+    const landmarks = results.multiHandLandmarks[0];
+
+    octx.fillStyle = '#e8c275';
+    octx.strokeStyle = 'rgba(232,194,117,0.5)';
+    octx.lineWidth = 2;
+    const W=overlayEl.width, H=overlayEl.height;
+    const HAND_CONNECTIONS=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    HAND_CONNECTIONS.forEach(([a,b])=>{
+      octx.beginPath(); octx.moveTo(landmarks[a].x*W, landmarks[a].y*H); octx.lineTo(landmarks[b].x*W, landmarks[b].y*H); octx.stroke();
+    });
+    landmarks.forEach(p=>{ octx.beginPath(); octx.arc(p.x*W,p.y*H,3,0,Math.PI*2); octx.fill(); });
+
+    // Smooth the fingertip-driven cursor position over time (exponential moving
+    // average) instead of using the raw per-frame position. This is what fixes
+    // the "block jumps when I pinch" issue: the natural micro-movement of the
+    // fingertip while curling into a pinch no longer causes a different cell to
+    // be targeted at the exact moment the pinch is detected.
+    const indexTip = landmarks[8];
+    const rawNdcX = (1 - indexTip.x) * 2 - 1;
+    const rawNdcY = -(indexTip.y * 2 - 1);
+    if (!smoothInit){
+      smoothNdcX = rawNdcX; smoothNdcY = rawNdcY; smoothInit = true;
+    } else {
+      smoothNdcX += (rawNdcX - smoothNdcX) * SMOOTH_FACTOR;
+      smoothNdcY += (rawNdcY - smoothNdcY) * SMOOTH_FACTOR;
+    }
+    ndc.x = smoothNdcX;
+    ndc.y = smoothNdcY;
+    if (!mouseMode) updateCursorVisual();
+
+    const pinching = isPinching(landmarks);
+    const fisted = isFist(landmarks);
+    dotPinch.classList.toggle('on', pinching);
+    dotFist.classList.toggle('on', fisted);
+    if (pinchCooldown>0) pinchCooldown--;
+    if (fistCooldown>0) fistCooldown--;
+
+    // Show a red highlight on whichever single block the fist gesture is currently
+    // aiming at, so the user can visually confirm the exact block before it's
+    // deleted (single-block precision delete).
+    if (!mouseMode){
+      if (!pinching){
+        const eraseCell = getEraseCell();
+        if (eraseCell){
+          eraseHighlight.visible = true;
+          eraseHighlight.position.set(eraseCell.x*CELL, eraseCell.y*CELL+0.5, eraseCell.z*CELL);
+        } else {
+          eraseHighlight.visible = false;
+        }
+      } else {
+        eraseHighlight.visible = false;
+      }
+
+      if (pinching && !wasPinching && pinchCooldown===0 && !fisted){
+        const cell = getTargetCell();
+        if (cell) addVoxel(cell.x, cell.y, cell.z);
+        pinchCooldown = 14;
+      }
+      if (fisted && !wasFist && fistCooldown===0){
+        const cell = getEraseCell();
+        if (cell) removeVoxel(cell.x, cell.y, cell.z);
+        fistCooldown = 14;
+      }
+    }
+    wasPinching = pinching; wasFist = fisted;
+    octx.restore();
+  }
+
+  const hands = new Hands({ locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
+  hands.setOptions({ maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.6, minTrackingConfidence:0.6 });
+  hands.onResults(onResults);
+
+  function resizeOverlay(){ overlayEl.width = videoEl.clientWidth; overlayEl.height = videoEl.clientHeight; }
+
+  async function initCameraAndHands(){
+    loading.style.display = 'flex';
+    loading.querySelector('.spin').style.display = 'block';
+    try{
+      loadingMsg.textContent = 'Meminta akses webcam…';
+      const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480 }, audio:false });
+      videoEl.srcObject = stream;
+      await videoEl.play();
+      resizeOverlay();
+      window.addEventListener('resize', resizeOverlay);
+      loadingMsg.textContent = 'Memuat model MediaPipe…';
+      const camUtils = new Camera(videoEl, { onFrame: async()=>{ await hands.send({image:videoEl}); }, width:640, height:480 });
+      camUtils.start();
+      loading.style.display = 'none';
+    } catch(err){
+      console.error(err);
+      loading.querySelector('.spin').style.display = 'none';
+      loadingMsg.innerHTML = 'Tidak bisa mengakses webcam.<br>Izinkan akses kamera di browser, lalu muat ulang halaman.<br><br>Kamu masih bisa coba <b>Mode mouse</b> di tombol bawah kiri setelah menutup pesan ini.';
+      const btn = document.createElement('button');
+      btn.textContent = 'Tutup & pakai mouse';
+      btn.style.marginTop = '10px';
+      btn.addEventListener('click', ()=>{
+        loading.style.display = 'none';
+        mouseMode = true;
+        document.getElementById('mouse-state').textContent = 'ON';
+      });
+      loading.appendChild(btn);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
